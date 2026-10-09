@@ -284,8 +284,8 @@ Because production CSV uploads, appending, and snapshot backups require persiste
 
 ## 13. Live Application URL
 
-- **Frontend (Vercel)**: `https://order-assistant-eta.vercel.app` *(configured via GitHub repository connection)*
-- **Local Host**: `http://localhost:8000`
+- **Frontend (Vercel)**: [https://frontend-six-pi-85.vercel.app](https://frontend-six-pi-85.vercel.app)
+- **Local Host**: [http://localhost:8000](http://localhost:8000)
 
 ---
 
