@@ -101,6 +101,7 @@ def search_orders(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     limit: int = 15,
+    offset: int = 0,
 ) -> Dict[str, Any]:
     """Retrieve orders matching various optional criteria.
 
@@ -169,8 +170,11 @@ def search_orders(
             return {"error": f"Invalid end_date format '{end_date}'. Expected YYYY-MM-DD."}
 
     total_matches = len(filtered)
+    safe_offset = max(0, int(offset))
+    if safe_offset > 0:
+        filtered = filtered.iloc[safe_offset:]
     safe_limit = max(1, min(int(limit), 30))
-    truncated = total_matches > safe_limit
+    truncated = (total_matches - safe_offset) > safe_limit
     subset = filtered.head(safe_limit)
 
     records: List[Dict[str, Any]] = []

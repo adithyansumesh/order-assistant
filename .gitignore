@@ -51,3 +51,9 @@ Thumbs.db
 .idea/
 scratch/
 inspect_dataset.py
+
+# Backups and temporary deployment artifacts
+backups/
+orders_default_backup.csv
+.vercel/
+*.log

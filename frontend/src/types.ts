@@ -3,6 +3,7 @@ export interface ToolCallSummary {
   arguments: Record<string, any>;
   summary: string;
   record_count?: number;
+  duration_ms?: number;
 }
 
 export interface ChatMessage {
@@ -36,4 +37,66 @@ export interface StatsData {
     start: string;
     end: string;
   };
+  top_customers?: Array<{
+    rank: number;
+    name: string;
+    spent: string;
+    orders: number;
+    tier: string;
+    city: string;
+  }>;
+}
+
+export type WorkspaceTab =
+  | "ai-assistant"
+  | "order-insights"
+  | "order-explorer"
+  | "data-management"
+  | "tool-inspector"
+  | "settings";
+
+export interface CsvValidationResult {
+  valid: boolean;
+  filename: string;
+  file_size_bytes: number;
+  total_rows: number;
+  columns: string[];
+  missing_columns: string[];
+  internal_duplicates: string[];
+  existing_duplicates: string[];
+  errors: string[];
+  warnings: string[];
+  preview_rows: Record<string, string>[];
+}
+
+export interface CsvImportResult {
+  success: boolean;
+  mode: "append" | "replace";
+  records_added: number;
+  records_skipped: number;
+  records_rejected: number;
+  total_records: number;
+  backup_created?: string | null;
+  message: string;
+  error?: string;
+}
+
+export interface OrderItem {
+  order_id: string;
+  customer_name: string;
+  city: string;
+  product: string;
+  category: string;
+  quantity: number;
+  unit_price: number;
+  total_amount: number;
+  order_date: string;
+  delivery_date: string;
+  status: "delivered" | "shipped" | "processing" | "cancelled" | "returned";
+}
+
+export interface AppSettings {
+  voiceLanguage: string;
+  audioFeedback: boolean;
+  reducedMotion: boolean;
 }

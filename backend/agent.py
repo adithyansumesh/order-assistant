@@ -111,8 +111,12 @@ def execute_tool_safely(tool_name: str, arguments: Dict[str, Any]) -> Dict[str, 
 
     handler = TOOL_DISPATCH[tool_name]
     try:
-        logger.info("Executing tool '%s' with args %s", tool_name, arguments)
-        result = handler(**arguments)
+        import inspect
+        sig = inspect.signature(handler)
+        valid_keys = set(sig.parameters.keys())
+        filtered_args = {k: v for k, v in arguments.items() if k in valid_keys}
+        logger.info("Executing tool '%s' with args %s", tool_name, filtered_args)
+        result = handler(**filtered_args)
         return result
     except TypeError as te:
         logger.error("Argument error calling %s: %s", tool_name, te)
@@ -153,13 +157,13 @@ def run_agent_turn(
         model_name = model_override
     elif env_model and env_model != "gpt-4o-mini":
         model_name = env_model
-    elif base_url and "groq" in base_url or api_key.startswith("gsk_"):
-        model_name = "openai/gpt-oss-120b"
+    elif (base_url and "groq" in base_url) or api_key.startswith("gsk_"):
+        model_name = "openai/gpt-oss-20b"
     else:
         model_name = "gpt-4o-mini"
 
     if client is None:
-        client = OpenAI(api_key=api_key, base_url=base_url)
+        client = OpenAI(api_key=api_key, base_url=base_url, timeout=25.0, max_retries=1)
 
     messages: List[Dict[str, Any]] = [
         {"role": "system", "content": SYSTEM_PROMPT},

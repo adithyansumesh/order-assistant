@@ -60,3 +60,17 @@ class StatsResponse(BaseModel):
     orders_by_category: Dict[str, int]
     orders_by_city: Dict[str, int]
     date_range: Dict[str, str]
+    top_customers: Optional[List[Dict[str, Any]]] = None
+
+
+class ValidateCsvRequest(BaseModel):
+    content: str = Field(..., description="CSV file text content")
+    filename: Optional[str] = Field("uploaded.csv", description="Original filename")
+
+
+class ImportCsvRequest(BaseModel):
+    content: str = Field(..., description="CSV file text content")
+    filename: Optional[str] = Field("uploaded.csv", description="Original filename")
+    mode: str = Field("append", description="Import mode: 'append' or 'replace'")
+    create_backup: bool = Field(True, description="Whether to create an automatic backup")
+

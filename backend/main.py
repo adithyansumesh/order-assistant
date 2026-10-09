@@ -9,6 +9,8 @@ Serves:
 
 from __future__ import annotations
 
+import asyncio
+import datetime
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -21,12 +23,21 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.agent import AgentExecutionError, run_agent_turn
-from backend.data import DataLoadError, get_orders_df
+from backend.data import (
+    DataLoadError,
+    get_orders_df,
+    import_csv_data,
+    reset_dataset_to_seed,
+    resolve_dataset_path,
+    validate_csv_data,
+)
 from backend.schemas import (
     ChatMessageRequest,
     ChatMessageResponse,
     HealthResponse,
+    ImportCsvRequest,
     StatsResponse,
+    ValidateCsvRequest,
 )
 
 # Load environment variables from .env
@@ -79,7 +90,7 @@ app.add_middleware(
 async def chat_endpoint(payload: ChatMessageRequest) -> ChatMessageResponse:
     """Processes user queries about store orders using OpenAI tool calling."""
     try:
-        reply, tool_calls = run_agent_turn(payload.message)
+        reply, tool_calls = await asyncio.to_thread(run_agent_turn, payload.message)
         return ChatMessageResponse(
             reply=reply,
             tool_calls=tool_calls,
@@ -161,6 +172,26 @@ async def stats_endpoint() -> StatsResponse:
     pending_df = df[df["status"].isin(["processing", "shipped"])]
     pending_count = len(pending_df)
 
+    # Compute genuine top customers by total spend from active dataframe
+    top_cust_df = (
+        df.groupby("customer_name")
+        .agg(spent=("total_inr", "sum"), orders=("order_id", "count"), city=("city", "first"))
+        .sort_values(by="spent", ascending=False)
+        .head(5)
+        .reset_index()
+    )
+    top_customers = [
+        {
+            "rank": int(idx + 1),
+            "name": str(row["customer_name"]),
+            "spent": f"₹{int(row['spent']):,}",
+            "orders": int(row["orders"]),
+            "tier": "Platinum VIP" if idx < 2 else "Gold VIP",
+            "city": str(row["city"]),
+        }
+        for idx, row in top_cust_df.iterrows()
+    ]
+
     return StatsResponse(
         total_orders=total_orders,
         total_recorded_value_inr=total_recorded,
@@ -176,7 +207,171 @@ async def stats_endpoint() -> StatsResponse:
             "start": str(df["order_date"].min()),
             "end": str(df["order_date"].max()),
         },
+        top_customers=top_customers,
     )
+
+
+@app.get(
+    "/api/orders",
+    summary="Retrieve orders list with filtering and pagination from active dataset",
+)
+async def list_orders_endpoint(
+    status: Optional[str] = None,
+    query: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+):
+    try:
+        df = get_orders_df()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Order dataset is currently unavailable.",
+        ) from exc
+
+    filtered = df.copy()
+    if status and status.lower() != "all":
+        filtered = filtered[filtered["status"].str.lower() == status.strip().lower()]
+
+    if query:
+        q = query.strip().lower()
+        filtered = filtered[
+            filtered["order_id"].str.lower().str.contains(q, na=False)
+            | filtered["customer_name"].str.lower().str.contains(q, na=False)
+            | filtered["city"].str.lower().str.contains(q, na=False)
+            | filtered["product"].str.lower().str.contains(q, na=False)
+            | filtered["category"].str.lower().str.contains(q, na=False)
+        ]
+
+    total_count = len(filtered)
+    safe_offset = max(0, offset)
+    safe_limit = max(1, min(limit, 500))
+    paged = filtered.iloc[safe_offset : safe_offset + safe_limit]
+
+    records = []
+    for _, row in paged.iterrows():
+        records.append({
+            "order_id": str(row["order_id"]),
+            "order_date": str(row["order_date"]),
+            "customer_name": str(row["customer_name"]),
+            "city": str(row["city"]),
+            "product": str(row["product"]),
+            "category": str(row["category"]),
+            "quantity": int(row["quantity"]),
+            "unit_price_inr": float(row["unit_price_inr"]),
+            "total_inr": float(row["total_inr"]),
+            "payment_method": str(row["payment_method"]),
+            "status": str(row["status"]),
+        })
+
+    return {
+        "total": total_count,
+        "returned": len(records),
+        "offset": safe_offset,
+        "limit": safe_limit,
+        "orders": records,
+    }
+
+
+@app.post(
+    "/api/data/validate",
+    summary="Pre-flight validation of an uploaded CSV dataset",
+)
+async def validate_data_endpoint(payload: ValidateCsvRequest):
+    try:
+        res = validate_csv_data(payload.content, filename=payload.filename or "uploaded.csv")
+        return res
+    except Exception as exc:
+        logger.error("Failed to validate CSV data: %s", exc, exc_info=True)
+        return JSONResponse(
+            status_code=400,
+            content={
+                "valid": False,
+                "filename": payload.filename or "uploaded.csv",
+                "errors": [f"Validation processing error: {str(exc)}"],
+                "warnings": [],
+                "preview_rows": [],
+            },
+        )
+
+
+@app.post(
+    "/api/data/import",
+    summary="Import or append CSV data to the active dataset",
+)
+async def import_data_endpoint(payload: ImportCsvRequest):
+    try:
+        res = import_csv_data(
+            content=payload.content,
+            mode=payload.mode,
+            create_backup=payload.create_backup,
+            filename=payload.filename or "uploaded.csv",
+        )
+        if not res.get("success"):
+            return JSONResponse(status_code=400, content=res)
+        return res
+    except Exception as exc:
+        logger.error("Failed to import CSV data: %s", exc, exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "error": f"Import failed: {str(exc)}",
+            },
+        )
+
+
+@app.get(
+    "/api/data/current",
+    summary="Get metadata and sample of currently active dataset",
+)
+async def current_data_endpoint():
+    try:
+        df = get_orders_df()
+        dataset_path = resolve_dataset_path()
+        mtime = datetime.datetime.fromtimestamp(dataset_path.stat().st_mtime).isoformat()
+        sample = df.head(10).to_dict(orient="records")
+        for row in sample:
+            for k in row:
+                row[k] = str(row[k])
+        return {
+            "total_records": len(df),
+            "filename": dataset_path.name,
+            "last_modified": mtime,
+            "columns": list(df.columns),
+            "date_range": {
+                "start": str(df["order_date"].min()),
+                "end": str(df["order_date"].max()),
+            },
+            "sample_rows": sample,
+        }
+    except Exception as exc:
+        logger.error("Failed to get current dataset info: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.get(
+    "/api/data/download",
+    summary="Download currently active orders.csv",
+)
+async def download_data_endpoint():
+    dataset_path = resolve_dataset_path()
+    if not dataset_path.is_file():
+        raise HTTPException(status_code=404, detail="Dataset file not found")
+    return FileResponse(
+        path=dataset_path,
+        filename="orders.csv",
+        media_type="text/csv",
+    )
+
+
+@app.post(
+    "/api/data/reset",
+    summary="Reset active dataset to default seed",
+)
+async def reset_data_endpoint():
+    res = reset_dataset_to_seed()
+    return res
 
 
 # Mount built static frontend if present (for single-service deployment on Render)

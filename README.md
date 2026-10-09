@@ -1,406 +1,295 @@
-# Order Assistant — Store Orders AI Agent
+# Order Assistant — Store AI Platform
 
-Order Assistant is a production-ready, full-stack AI agent application built for querying and analyzing e-commerce store orders. The assistant is powered by genuine OpenAI function/tool calling grounded in deterministic backend operations on a real dataset (`orders.csv`), preventing hallucinations and delivering mathematically exact order facts, revenue analytics, and status lookups.
-
----
-
-## 1. Key Features
-
-- **Genuine AI Tool Calling**: The LLM autonomously determines when and which backend tools to invoke (`get_order_details`, `search_orders`, `calculate_order_analytics`). The model never receives the raw 60-row dataset in its prompt; it interacts solely through structured tool outputs.
-- **Strict Grounding & Anti-Hallucination**: All factual answers about orders, customer spending, revenues, and counts are grounded in the dataset. If an order does not exist or a filter returns no matches, it truthy reports that.
-- **Revenue Clarity**: Explicitly distinguishes between gross recorded order values (all orders) and realized net revenue (delivered orders only), accounting for cancelled (₹72,634) and returned orders.
-- **Deterministic Analytics Engine**: High-performance aggregations powered by Pandas for calculating counts, sums, rankings, averages, and group breakdowns.
-- **SaaS UI Dashboard**: Clean, responsive interface featuring real-time dataset health, quick KPI stats banner, clickable question suggestions, transparent "Tools used" disclosure, multiline message composer with keyboard shortcuts, and graceful error recovery.
-- **Single-Service Architecture**: The React + TypeScript + Vite frontend is pre-built into static assets and served directly by FastAPI, enabling zero-hassle deployment on Render under a single unified URL.
+Order Assistant is a production-ready, full-stack AI agent application designed for querying, exploring, and analyzing e-commerce store orders. Built with **FastAPI** and **React 19 + TypeScript + Vite**, the assistant employs model-native tool calling grounded strictly in deterministic backend operations on a real dataset (`orders.csv`), eliminating hallucinations and delivering mathematically exact order details, status summaries, and financial analytics.
 
 ---
 
-## 2. Tech Stack
+## 1. Main Features
 
-- **Backend**:
-  - Python 3.11+ / 3.14
-  - FastAPI (REST API & static SPA file serving)
-  - Pydantic v2 (Request/response schemas & validation)
-  - Pandas (CSV loading, validation, and analytics)
-  - OpenAI Python SDK (Genuine model-supported tool calling)
-  - Pytest & FastAPI TestClient (26 automated unit and integration tests)
-  - Uvicorn (ASGI server)
+- **Genuine AI Tool Calling**: The LLM autonomously inspects queries and executes appropriate backend tools (`get_order_details`, `search_orders`, `calculate_order_analytics`). The model never receives the raw dataset in its prompt; it interacts exclusively through typed tool schemas.
+- **Strict Grounding & Anti-Hallucination**: All factual answers about orders, customer spending, revenues, and counts are grounded in the active dataset. If an order does not exist or a filter returns no matches, it truthy reports that.
+- **Financial Precision**: Explicitly distinguishes between **gross recorded order value** (all orders) and **realized net revenue** (delivered orders only), detailing exact deductions for cancelled and returned orders.
+- **6 Comprehensive Views**:
+  - **Assistant Chat**: Interactive conversational interface with suggested queries, keyboard shortcuts, markdown rendering, and transparent tool execution disclosure.
+  - **Order Insights**: Executive KPI metrics, interactive revenue area charts, category distribution bars, fulfillment breakdown, and dynamic customer spend leaderboard.
+  - **Order Explorer**: Real-time paginated directory with multi-field search (order ID, customer name, product, city) and status filtering.
+  - **Data Management**: Production CSV intake with drag-and-drop file upload, pre-flight schema validation, tabular staged preview, append ingestion with duplicate detection, replacement ingestion with automatic snapshot backups, and direct active dataset download.
+  - **Tool & Model Inspector**: Real-time diagnostic viewer inspecting model configuration, data connection, and tool schemas.
+  - **System Settings**: Model provider selection, dataset file path management, and interface preferences.
+- **Dynamic Dataset Reactivity**: When new orders are uploaded or modified via Data Management, all views (Chat, Insights, Explorer, and Tools) immediately reflect the active dataset without requiring server restarts.
+
+---
+
+## 2. Technology Stack
+
 - **Frontend**:
   - React 19 + TypeScript
   - Vite 6
-  - Lucide React (Clean iconography)
-  - Custom Responsive SaaS CSS Design System
+  - Lucide React (Icons)
+  - Custom Responsive Design System (Desktop, Tablet, and Mobile layouts)
+- **Backend**:
+  - Python 3.11+ / 3.14
+  - FastAPI (REST API & static SPA asset serving)
+  - Pydantic v2 (Request/response schemas & data validation)
+  - Pandas (CSV loading, schema verification, and deterministic analytics)
+  - Groq / OpenAI SDK (Tool-calling inference via `llama-3.3-70b-versatile` or `gpt-4o-mini`)
+  - Uvicorn (ASGI production server)
+- **Testing**:
+  - Pytest & FastAPI TestClient (31 automated unit and integration tests)
 - **Deployment**:
-  - Render Web Service
-  - `render.yaml` Blueprint
+  - **Frontend**: Vercel (SPA with client-side rewrites)
+  - **Backend**: Render Web Service (`render.yaml`) / Containerized FastAPI
+  - **Serverless Fallback**: Vercel Serverless Function entry point (`api/index.py`)
 
 ---
 
-## 3. Project Directory Structure
+## 3. Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Client Layer                           │
+│  React 19 + TypeScript + Vite SPA (Hosted on Vercel)        │
+│  Views: Chat | Insights | Explorer | Data Management        │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ HTTPS / JSON (/api/*)
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      FastAPI Backend                        │
+│  FastAPI REST API (Hosted on Render / Container)             │
+│  Routes: /api/chat, /api/orders, /api/stats, /api/data/*     │
+└──────────────┬───────────────────────────────┬──────────────┘
+               │ Tool Calls                    │ Data Ops
+               ▼                               ▼
+┌──────────────────────────────┐ ┌────────────────────────────┐
+│      AI Agent Engine         │ │    Data Management Engine  │
+│  LLM: Groq / OpenAI          │ │  Pandas DataFrame Cache    │
+│  Tools:                      │ │  orders.csv (Active File)  │
+│  - get_order_details         │ │  backups/ (Snapshots)      │
+│  - search_orders             │ │  orders_seed.csv (Reset)   │
+│  - calculate_order_analytics │ └────────────────────────────┘
+└──────────────────────────────┘
+```
+
+---
+
+## 4. Repository Structure
 
 ```
 order-assistant/
+├── api/
+│   └── index.py              # Vercel Serverless Function entry point
 ├── backend/
 │   ├── __init__.py
-│   ├── main.py          # FastAPI application, CORS, endpoints, SPA serving
-│   ├── agent.py         # OpenAI tool-calling loop, multi-turn dispatch, error handling
-│   ├── tools.py         # search_orders, calculate_order_analytics, get_order_details
-│   ├── data.py          # CSV loader, schema validator, duplicate detector, cache
-│   └── schemas.py       # Pydantic schemas for requests, responses, and tool models
+│   ├── main.py              # FastAPI application, CORS, and REST endpoints
+│   ├── agent.py             # LLM tool-calling loop and dispatch
+│   ├── tools.py             # Deterministic analytics, search, and lookup tools
+│   ├── data.py              # CSV validator, append/replace ingestion, caching
+│   └── schemas.py           # Pydantic validation schemas
 ├── frontend/
 │   ├── src/
-│   │   ├── components/
-│   │   │   ├── Header.tsx        # Brand logo, title, and live dataset health pill
-│   │   │   ├── StatsBanner.tsx   # Top KPI metrics strip
-│   │   │   ├── MessageBubble.tsx # User/assistant bubbles, markdown, retry option
-│   │   │   ├── ToolCallsBadge.tsx# Transparent "Tools used" collapsible disclosure
-│   │   │   └── ExampleChips.tsx  # Clickable suggested questions
-│   │   ├── App.tsx               # Main application container & chat state
-│   │   ├── index.css             # Cohesive SaaS design system & typography
-│   │   ├── types.ts              # TypeScript interfaces
-│   │   └── main.tsx              # React entry point
-│   ├── dist/                     # Production build artifacts
+│   │   ├── components/      # UI components (Header, Sidebar, DataManagement, etc.)
+│   │   ├── App.tsx          # Main state container and tab navigation
+│   │   ├── config.ts        # Environment API base URL resolver
+│   │   ├── types.ts         # TypeScript interfaces
+│   │   └── index.css        # Responsive design system
 │   ├── package.json
 │   ├── tsconfig.json
-│   └── vite.config.ts
+│   ├── vite.config.ts
+│   └── vercel.json          # Frontend SPA routing configuration
 ├── tests/
-│   ├── __init__.py
-│   ├── test_data.py     # Dataset loading, required column checks, duplicate checks
-│   ├── test_tools.py    # Order lookup, status filters, analytics, customer ranking
-│   ├── test_agent.py    # Mocked OpenAI agent loop, tool dispatch, error handling
-│   └── test_api.py      # Health, stats, chat validation, and SPA endpoint tests
-├── orders.csv           # Source of truth dataset (60 orders, June - Sept 2026)
-├── run.py               # Single-command application launcher
-├── render.yaml          # Render Blueprint deployment configuration
-├── requirements.txt     # Python production dependencies
-├── .env.example         # Environment template with placeholders
-├── .gitignore           # Git ignore rules excluding secrets, venvs, and build folders
-├── README.md            # Comprehensive project documentation
-└── WRITEUP.md           # Engineering decision write-up
+│   ├── test_data.py         # CSV schema and loading validation tests
+│   ├── test_tools.py        # Analytics, search, and lookup unit tests
+│   ├── test_agent.py        # Mocked agent execution and tool loop tests
+│   ├── test_api.py          # API endpoint and health tests
+│   └── test_data_management.py # CSV validation and ingestion tests
+├── orders.csv               # Authentic active dataset (60 verified records)
+├── orders_seed.csv          # Safe baseline dataset for recovery/reset
+├── render.yaml              # Render Blueprint deployment configuration
+├── vercel.json              # Root Vercel deployment configuration
+├── requirements.txt         # Python dependencies
+├── run.py                   # Single-command local launcher
+├── .env.example             # Environment template with placeholders
+├── README.md                # Project documentation
+└── WRITEUP.md               # Engineering decisions and architecture write-up
 ```
-
----
-
-## 4. Dataset Overview (`orders.csv`)
-
-The application uses the provided `orders.csv` containing 60 orders spanning June 1, 2026 to September 28, 2026:
-- **Columns**: `order_id, order_date, customer_name, city, product, category, quantity, unit_price_inr, total_inr, payment_method, status`
-- **Total Recorded Order Value**: ₹4,70,312 (60 orders)
-- **Delivered Realized Revenue**: ₹3,71,040 (48 orders)
-- **Cancelled Orders**: 7 orders, total value ₹72,634
-- **Returned Orders**: 3 orders, total value ₹24,292
-- **In-Progress / Pending Orders**: 2 orders (ORD-1059: `processing`, ORD-1060: `shipped`)
-- **Top Customer Spender**: Rohan Das (₹1,12,282 total across 7 orders)
-- **Consistency**: All rows satisfy `quantity * unit_price_inr == total_inr` with zero nulls.
 
 ---
 
 ## 5. Prerequisites
 
-- Python 3.11 or newer
-- Node.js v18 or newer and npm
-- An OpenAI API Key (e.g. `sk-...`)
+- **Python**: 3.11 or newer
+- **Node.js**: 18.0 or newer (with npm)
+- **API Key**: A valid Groq API key (`gsk_...`) or OpenAI API key (`sk-...`)
 
 ---
 
-## 6. Local Setup and Installation
+## 6. Local Installation & Setup
 
-### Step 1: Clone or Navigate to the Workspace
+Set up the project in two simple steps:
+
+### 1. Clone the repository and install dependencies
+
 ```bash
+# Clone the repository
+git clone https://github.com/<your-username>/order-assistant.git
 cd order-assistant
-```
 
-### Step 2: Configure Environment Variables
-Copy `.env.example` to `.env`:
-```bash
-cp .env.example .env
-```
-*(On Windows PowerShell: `Copy-Item .env.example .env`)*
-
-Open `.env` and add your OpenAI API key:
-```env
-OPENAI_API_KEY=sk-your-openai-api-key-here
-OPENAI_MODEL=gpt-4o-mini
-PORT=8000
-HOST=0.0.0.0
-```
-
-### Step 3: Set Up Python Virtual Environment
-```bash
+# Set up Python virtual environment
 python -m venv .venv
-
-# On Linux/macOS:
+# On Windows:
+.\.venv\Scripts\activate
+# On macOS/Linux:
 source .venv/bin/activate
 
-# On Windows:
-.\.venv\Scripts\Activate.ps1
-```
-
-Install backend dependencies:
-```bash
+# Install Python dependencies
 pip install -r requirements.txt
-```
 
-### Step 4: Install Frontend Dependencies and Build Assets
-```bash
+# Install frontend dependencies and build assets
 cd frontend
 npm install
 npm run build
 cd ..
 ```
 
+### 2. Configure Environment Variables
+
+Copy `.env.example` to `.env`:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` to provide your API key:
+
+```env
+# Choose Groq (recommended for speed) or OpenAI:
+GROQ_API_KEY=gsk_your_groq_api_key_here
+# or
+OPENAI_API_KEY=sk-your_openai_api_key_here
+```
+
 ---
 
-## 7. Running the Application
+## 7. Running the Application Locally
 
-### Option A: Single-Command Production Mode (Recommended)
-This runs the unified FastAPI server which serves both the API and the built React frontend on `http://localhost:8000`:
+### Option A: Single Command Launcher (Serves Frontend & Backend on Port 8000)
 
 ```bash
 python run.py
 ```
-Or directly with Uvicorn:
+
+Open **`http://localhost:8000`** in your browser.
+
+### Option B: Separate Frontend Dev Server with Hot Reload
+
 ```bash
-uvicorn backend.main:app --host 0.0.0.0 --port 8000
-```
-Visit **http://localhost:8000** in your browser.
+# Terminal 1 (Backend):
+uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
----
-
-### Option B: Dual Development Server Mode (with Hot Reloading)
-If you want live hot-reloading for frontend modifications:
-
-**Terminal 1 (Backend API):**
-```bash
-uvicorn backend.main:app --reload --port 8000
-```
-
-**Terminal 2 (Frontend Vite Server):**
-```bash
+# Terminal 2 (Frontend):
 cd frontend
 npm run dev
 ```
-Visit **http://localhost:5173** (Vite proxies all `/api/*` calls to FastAPI at port 8000).
+
+Open **`http://localhost:5173`** in your browser (API requests automatically proxy to port 8000).
 
 ---
 
-## 8. Running Automated Tests
+## 8. Required Environment Variables
 
-Run the complete test suite with pytest:
+| Variable | Description | Required | Default |
+| :--- | :--- | :--- | :--- |
+| `GROQ_API_KEY` | Groq API Key (starts with `gsk_`) | Optional* | None |
+| `OPENAI_API_KEY` | OpenAI API Key (starts with `sk-`) | Optional* | None |
+| `OPENAI_MODEL` | Model to use for tool calling | Optional | `llama-3.3-70b-versatile` (Groq) or `gpt-4o-mini` (OpenAI) |
+| `OPENAI_BASE_URL` | Base URL for OpenAI-compatible APIs | Optional | `https://api.groq.com/openai/v1` (if Groq) |
+| `VITE_API_BASE_URL` | Public backend URL for frontend (set on Vercel) | Optional | Relative `/api` (local) |
+| `ORDERS_CSV_PATH` | Path override for active dataset | Optional | `orders.csv` in project root |
+| `PORT` | HTTP server port | Optional | `8000` |
+| `HOST` | HTTP server host binding | Optional | `0.0.0.0` |
+
+*\* At least one AI API key (`GROQ_API_KEY` or `OPENAI_API_KEY`) is required for Assistant Chat.*
+
+---
+
+## 9. How the Agent Uses Tools
+
+The agent uses native model tool calling to query the store dataset:
+
+1. **`get_order_details`**:
+   - Triggered when queries include an exact order ID (e.g. *"What is the status of ORD-1025?"*).
+   - Returns full order record: customer name, product, quantity, unit price, total INR, payment method, order date, and fulfillment status.
+2. **`search_orders`**:
+   - Triggered for attribute-based searches (e.g. *"Show orders from Chennai"*, *"Which orders are currently in transit?"*).
+   - Supports filtering by `status`, `city`, `category`, `customer_name`, and `date_from`/`date_to`.
+3. **`calculate_order_analytics`**:
+   - Triggered for numerical calculations (e.g. *"What was the revenue of Electronics in August?"*, *"Who is our top customer?"*).
+   - Operations: `sum_revenue`, `count_orders`, `average_order_value`, `customer_spending_ranking`, `category_breakdown`, `city_breakdown`, `status_breakdown`, `monthly_trend`.
+
+---
+
+## 10. CSV Schema & Data Management
+
+### Required CSV Schema (11 Columns)
+
+Any uploaded CSV must contain the following header columns (case-insensitive, whitespace-trimmed):
+
+```csv
+order_id,order_date,customer_name,city,product,category,quantity,unit_price_inr,total_inr,payment_method,status
+```
+
+- **Validation Rules**:
+  - `order_id`: Non-empty string, unique within the dataset.
+  - `order_date`: ISO-8601 formatted date (`YYYY-MM-DD`).
+  - `quantity`: Positive integer.
+  - `unit_price_inr`, `total_inr`: Positive numbers.
+  - `status`: One of `delivered`, `cancelled`, `returned`, `processing`, `shipped`.
+
+### Ingestion Modes:
+- **Append New Records**: Ingests new unique rows. Automatically skips existing duplicate order IDs and reports them.
+- **Replace Current Dataset**: Atomically swaps the active dataset after creating a dated snapshot backup in `backups/`.
+
+---
+
+## 11. Running the Automated Test Suite
+
+Run all 31 unit and integration tests with pytest:
+
 ```bash
-pytest -v
+pytest
 ```
 
-All 26 automated tests run in ~1.3 seconds and require no paid API calls (external OpenAI calls are mocked):
-```
-tests/test_agent.py::test_agent_executes_tool_call_and_returns_grounded_reply PASSED
-tests/test_agent.py::test_agent_missing_api_key_raises_informative_error PASSED
-tests/test_agent.py::test_execute_tool_safely_unallowlisted_tool PASSED
-tests/test_agent.py::test_generate_human_readable_summary PASSED
-tests/test_api.py::test_health_endpoint_success PASSED
-tests/test_api.py::test_stats_endpoint_matches_csv_aggregates PASSED
-tests/test_api.py::test_chat_endpoint_rejects_empty_or_whitespace_message PASSED
-tests/test_api.py::test_chat_endpoint_rejects_excessively_long_message PASSED
-tests/test_api.py::test_chat_endpoint_successful_mocked_interaction PASSED
-tests/test_api.py::test_chat_endpoint_agent_execution_error_handled_gracefully PASSED
-tests/test_api.py::test_health_endpoint_degraded_when_dataset_missing PASSED
-tests/test_api.py::test_spa_index_served PASSED
-tests/test_data.py::test_real_dataset_loads_successfully PASSED
-tests/test_data.py::test_missing_required_column_raises_error PASSED
-tests/test_data.py::test_duplicate_order_ids_raises_error PASSED
-tests/test_data.py::test_nonexistent_dataset_file_raises_error PASSED
-tests/test_tools.py::test_get_existing_order_details PASSED
-tests/test_tools.py::test_get_nonexistent_order_details PASSED
-tests/test_tools.py::test_search_orders_by_status PASSED
-tests/test_tools.py::test_search_orders_pending PASSED
-tests/test_tools.py::test_search_orders_by_city_and_customer PASSED
-tests/test_tools.py::test_calculate_cancelled_orders_count PASSED
-tests/test_tools.py::test_calculate_category_revenue_for_month PASSED
-tests/test_tools.py::test_ranking_customers_by_spending PASSED
-tests/test_tools.py::test_average_order_value PASSED
-tests/test_tools.py::test_invalid_operation_returns_error PASSED
-============================== 26 passed in 1.34s ==============================
-```
+All tests execute in ~1.5 seconds. Tests mock external AI provider calls so they run deterministically without incurring API charges or requiring network access.
 
 ---
 
-## 9. API Documentation
+## 12. Deployment Architecture & Hosting
 
-### 1. `POST /api/chat`
-Processes questions about store orders using the AI Agent tool-calling loop.
+### Recommended Production Architecture (Vercel Frontend + Render Backend)
 
-**Request:**
-```json
-{
-  "message": "What is the status of order ORD-1025?"
-}
-```
+Because production CSV uploads, appending, and snapshot backups require persistent filesystem storage that survives serverless container recycling, the recommended architecture separates the frontend and backend:
 
-**Success Response (HTTP 200):**
-```json
-{
-  "reply": "Order ORD-1025 was placed by Karthik Rao on July 14, 2026, for 3 units of Wireless Mouse (totaling ₹2,397). Its current status is delivered.",
-  "tool_calls": [
-    {
-      "tool_name": "get_order_details",
-      "arguments": {
-        "order_id": "ORD-1025"
-      },
-      "summary": "Looked up order ORD-1025 (Found)",
-      "record_count": null
-    }
-  ],
-  "error": null
-}
-```
-
-**Validation Error Response (HTTP 422):**
-If `message` is empty, contains only whitespace, or exceeds 2,000 characters.
-
-**Graceful Configuration / Upstream Error Response (HTTP 200):**
-```json
-{
-  "reply": "I encountered an issue processing your request.",
-  "tool_calls": [],
-  "error": "OpenAI API key is not configured. Please set the OPENAI_API_KEY environment variable in your .env file or deployment settings."
-}
-```
+1. **Frontend on Vercel**:
+   - Hosted as a high-speed React SPA on Vercel's global CDN.
+   - Configure **Output Directory**: `frontend/dist` (or set Root Directory to `frontend`).
+   - Add environment variable `VITE_API_BASE_URL` pointing to your deployed backend URL.
+2. **Backend on Render (or container host)**:
+   - Deployed as a Web Service using the included `render.yaml`.
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+   - Environment Variables: `GROQ_API_KEY` (or `OPENAI_API_KEY`), `PYTHON_VERSION=3.11.9`.
+   - Health check endpoint: `/api/health`.
 
 ---
 
-### 2. `GET /api/health`
-Returns system health, dataset status, and loaded order count.
+## 13. Live Application URL
 
-**Response (HTTP 200):**
-```json
-{
-  "status": "healthy",
-  "dataset_loaded": true,
-  "total_orders": 60,
-  "version": "1.0.0"
-}
-```
+- **Frontend (Vercel)**: `https://order-assistant-eta.vercel.app` *(configured via GitHub repository connection)*
+- **Local Host**: `http://localhost:8000`
 
 ---
 
-### 3. `GET /api/stats`
-Returns summary statistics and distributions derived directly from `orders.csv`.
+## 14. Known Limitations
 
-**Response (HTTP 200):**
-```json
-{
-  "total_orders": 60,
-  "total_recorded_value_inr": 470312.0,
-  "realized_revenue_inr": 371040.0,
-  "cancelled_orders_count": 7,
-  "cancelled_value_inr": 72634.0,
-  "returned_orders_count": 3,
-  "pending_orders_count": 2,
-  "orders_by_status": {
-    "delivered": 48,
-    "cancelled": 7,
-    "returned": 3,
-    "processing": 1,
-    "shipped": 1
-  },
-  "orders_by_category": {
-    "Electronics": 21,
-    "Accessories": 18,
-    "Stationery": 11,
-    "Furniture": 10
-  },
-  "orders_by_city": {
-    "Chennai": 21,
-    "Thiruvananthapuram": 16,
-    "Kochi": 13,
-    "Hyderabad": 4,
-    "Bengaluru": 4,
-    "Pune": 2
-  },
-  "date_range": {
-    "start": "2026-06-01",
-    "end": "2026-09-28"
-  }
-}
-```
-
----
-
-## 10. How the AI Agent Uses Tools
-
-The agent operates in a closed deterministic loop:
-```
-User Question
-      │
-      ▼
-OpenAI LLM + Tool Definitions
-      │
-      ▼
-LLM selects Tool & generates JSON arguments
-      │
-      ▼
-Backend validates & executes Python tool against orders.csv
-      │
-      ▼
-Tool outputs returned to LLM as role='tool' message
-      │
-      ▼
-LLM produces final grounded answer (or selects next tool, max 5 iterations)
-      │
-      ▼
-Safe reply + Tool summaries returned to client
-```
-
-### Registered Tools:
-1. `get_order_details(order_id)`:
-   - Used for queries with an exact order ID (e.g. "Status of ORD-1025").
-   - Case-insensitive lookup; returns exact attributes or explicit not-found structure.
-2. `search_orders(order_id, customer_name, city, product, category, status, start_date, end_date, limit)`:
-   - Used for listing orders or searching by customer, city, or status (e.g. "Show all orders from Chennai", "Which orders are pending?").
-   - Maps `pending` to active non-final orders (`processing` and `shipped`).
-3. `calculate_order_analytics(operation, category, month, year, city, status, customer_name, top_n)`:
-   - Used for quantitative questions (e.g. "How many orders were cancelled?", "Total revenue from Electronics in August", "Which customer has spent the most?").
-   - Always provides both gross recorded value and realized delivered revenue.
-
----
-
-## 11. Deployment on Render
-
-The repository is configured for single-service deployment on Render.
-
-### Option 1: Render Blueprint (`render.yaml`)
-1. Push this repository to GitHub.
-2. In the [Render Dashboard](https://dashboard.render.com), click **New +** > **Blueprint**.
-3. Select your repository. Render automatically reads `render.yaml`.
-4. Provide your `OPENAI_API_KEY` under Environment Variables.
-5. Click **Apply**.
-
-### Option 2: Manual Web Service Setup on Render
-1. Click **New +** > **Web Service**.
-2. Connect your GitHub repository.
-3. Configure the service settings:
-   - **Environment**: Python 3
-   - **Region**: Oregon (or your preferred region)
-   - **Branch**: main
-   - **Build Command**:
-     ```bash
-     pip install -r requirements.txt && cd frontend && npm install && npm run build && cd ..
-     ```
-   - **Start Command**:
-     ```bash
-     uvicorn backend.main:app --host 0.0.0.0 --port $PORT
-     ```
-   - **Health Check Path**: `/api/health`
-4. Under **Environment Variables**, add:
-   - `OPENAI_API_KEY`: `your_actual_openai_key`
-   - `OPENAI_MODEL`: `gpt-4o-mini`
-   - `PYTHON_VERSION`: `3.11.9`
-5. Click **Create Web Service**.
-
----
-
-## 12. Troubleshooting and Known Limitations
-
-- **Render Free Tier Cold Starts**: On Render's free tier, inactive services spin down after 15 minutes of inactivity. The first request after sleep may take 30-50 seconds to respond. Subsequent requests are fast.
-- **Dataset Read-Only Scope**: The dataset is static and read-only. The assistant cannot modify orders, create new records, or execute refunds.
-- **Max Agent Turns**: The agent loop is bounded at 5 iterations to prevent infinite recursion and limit cost.
+- **Free-Tier Cold Starts**: If using a free-tier backend host (e.g. Render free tier), the server may spin down after 15 minutes of inactivity, causing the first request after idle to take ~30–50 seconds to boot.
+- **Multi-Instance Serverless Storage**: Serverless platforms (like Vercel Functions) have ephemeral, non-shared filesystems; persistent CSV modifications require a containerized backend or persistent volume for cross-device synchronization.
