@@ -1,4 +1,6 @@
 import React from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { User, Bot, AlertCircle, RefreshCw } from "lucide-react";
 import { ChatMessage } from "../types";
 import { ToolCallsBadge } from "./ToolCallsBadge";
@@ -19,7 +21,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onRetry }
 
       <div className="message-bubble-wrapper">
         <div className="message-bubble">
-          {message.content}
+          {isUser ? (
+            <div className="user-message-text">{message.content}</div>
+          ) : (
+            <div className="markdown-content">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {message.content}
+              </ReactMarkdown>
+            </div>
+          )}
 
           {message.tool_calls && message.tool_calls.length > 0 && (
             <ToolCallsBadge toolCalls={message.tool_calls} />

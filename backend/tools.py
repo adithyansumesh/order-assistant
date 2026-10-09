@@ -305,6 +305,13 @@ def calculate_order_analytics(
         cancelled_subset = filtered[filtered["status"] == "cancelled"]
         cancelled_value = float(cancelled_subset["total_inr"].sum())
 
+        status_breakdown = {}
+        for status_val, group in filtered.groupby("status"):
+            status_breakdown[str(status_val)] = {
+                "order_count": int(len(group)),
+                "total_inr": float(group["total_inr"].sum()),
+            }
+
         return {
             "operation": "sum_revenue",
             "filters_applied": filter_desc,
@@ -313,6 +320,7 @@ def calculate_order_analytics(
             "realized_delivered_revenue_inr": delivered_revenue,
             "non_cancelled_value_inr": non_cancelled_revenue,
             "cancelled_value_inr": cancelled_value,
+            "status_breakdown": status_breakdown,
             "note": (
                 "Total recorded value includes all matched orders. Realized revenue includes only 'delivered' orders. "
                 "Non-cancelled value excludes 'cancelled' orders."

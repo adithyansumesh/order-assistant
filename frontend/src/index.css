@@ -367,6 +367,63 @@ input, textarea {
   text-align: right;
 }
 
+/* Markdown Content Styling */
+.markdown-content {
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.markdown-content p {
+  margin-bottom: 8px;
+}
+
+.markdown-content p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin: 6px 0 10px 20px;
+  padding: 0;
+}
+
+.markdown-content li {
+  margin-bottom: 4px;
+}
+
+.markdown-content strong {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.markdown-content em {
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 0.84rem;
+}
+
+.markdown-content th,
+.markdown-content td {
+  border: 1px solid var(--color-border);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.markdown-content th {
+  background-color: #f1f5f9;
+  font-weight: 600;
+}
+
+.markdown-content tr:nth-child(even) {
+  background-color: #f8fafc;
+}
+
 /* Tool execution disclosure */
 .tool-disclosure {
   margin-top: 8px;
