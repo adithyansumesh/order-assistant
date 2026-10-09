@@ -284,7 +284,8 @@ Because production CSV uploads, appending, and snapshot backups require persiste
 
 ## 13. Live Application URL
 
-- **Frontend (Vercel)**: [https://frontend-six-pi-85.vercel.app](https://frontend-six-pi-85.vercel.app)
+- **Production Live URL (Vercel Full-Stack)**: [https://order-assistant-weld.vercel.app](https://order-assistant-weld.vercel.app)
+- **Vercel Project Dashboard**: [https://vercel.com/adithyansreevinu-7233s-projects/order-assistant](https://vercel.com/adithyansreevinu-7233s-projects/order-assistant)
 - **Local Host**: [http://localhost:8000](http://localhost:8000)
 
 ---
