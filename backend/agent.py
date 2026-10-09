@@ -130,17 +130,29 @@ def run_agent_turn(
     Returns:
         Tuple of (reply_text, list_of_tool_call_summaries)
     """
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("OPENAI_API_KEY") or os.getenv("GROQ_API_KEY")
     if not api_key or api_key.strip() in ["", "your_openai_api_key_here"]:
         raise AgentExecutionError(
-            "OpenAI API key is not configured. Please set the OPENAI_API_KEY environment variable "
+            "AI API key is not configured. Please set the OPENAI_API_KEY environment variable "
             "in your .env file or deployment settings."
         )
 
-    model_name = model_override or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    base_url = os.getenv("OPENAI_BASE_URL")
+    if not base_url and api_key.startswith("gsk_"):
+        base_url = "https://api.groq.com/openai/v1"
+
+    env_model = os.getenv("OPENAI_MODEL")
+    if model_override:
+        model_name = model_override
+    elif env_model and env_model != "gpt-4o-mini":
+        model_name = env_model
+    elif base_url and "groq" in base_url or api_key.startswith("gsk_"):
+        model_name = "openai/gpt-oss-120b"
+    else:
+        model_name = "gpt-4o-mini"
 
     if client is None:
-        client = OpenAI(api_key=api_key)
+        client = OpenAI(api_key=api_key, base_url=base_url)
 
     messages: List[Dict[str, Any]] = [
         {"role": "system", "content": SYSTEM_PROMPT},
