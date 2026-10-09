@@ -165,7 +165,13 @@ def run_agent_turn(
             logger.error("OpenAI authentication error: %s", err)
             raise AgentExecutionError("OpenAI authentication failed. Please check your API key.") from err
         except openai.RateLimitError as err:
+            err_str = str(err)
             logger.error("OpenAI rate limit error: %s", err)
+            if "insufficient_quota" in err_str or "credit_balance_exhausted" in err_str:
+                raise AgentExecutionError(
+                    "OpenAI API quota exhausted (Error 429: credit_balance_exhausted). "
+                    "Please add billing credits to your OpenAI account at platform.openai.com/billing."
+                ) from err
             raise AgentExecutionError("OpenAI rate limit reached. Please retry in a few moments.") from err
         except (openai.APITimeoutError, openai.APIConnectionError) as err:
             logger.error("OpenAI connection/timeout error: %s", err)
