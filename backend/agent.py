@@ -133,7 +133,7 @@ def run_agent_turn(
     api_key = os.getenv("OPENAI_API_KEY") or os.getenv("GROQ_API_KEY")
     if not api_key or api_key.strip() in ["", "your_openai_api_key_here"]:
         raise AgentExecutionError(
-            "AI API key is not configured. Please set the OPENAI_API_KEY environment variable "
+            "OpenAI API key is not configured. Please set the OPENAI_API_KEY environment variable "
             "in your .env file or deployment settings."
         )
 
