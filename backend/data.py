@@ -44,10 +44,15 @@ def resolve_dataset_path(custom_path: Optional[str] = None) -> Path:
     if os.getenv("VERCEL") and not custom_path and not os.getenv("ORDERS_CSV_PATH"):
         tmp_csv = Path("/tmp") / "orders.csv"
         if not tmp_csv.is_file():
-            project_root = Path(__file__).resolve().parent.parent
-            src_csv = project_root / "orders.csv"
-            if src_csv.is_file():
-                shutil.copy2(src_csv, tmp_csv)
+            candidates = [
+                Path(__file__).resolve().parent / "orders.csv",
+                Path(__file__).resolve().parent.parent / "orders.csv",
+                Path.cwd() / "orders.csv",
+            ]
+            for cand in candidates:
+                if cand.is_file():
+                    shutil.copy2(cand, tmp_csv)
+                    break
         if tmp_csv.is_file():
             return tmp_csv
 

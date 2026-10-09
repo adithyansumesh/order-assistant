@@ -57,3 +57,5 @@ backups/
 orders_default_backup.csv
 .vercel/
 *.log
+
+.vercel

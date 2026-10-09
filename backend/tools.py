@@ -14,7 +14,10 @@ import logging
 from typing import Any, Dict, List, Optional
 import pandas as pd
 
-from backend.data import get_orders_df
+try:
+    from backend.data import get_orders_df
+except ImportError:
+    from data import get_orders_df
 
 logger = logging.getLogger("order_assistant.tools")
 

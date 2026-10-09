@@ -14,8 +14,12 @@ from typing import Any, Dict, List, Optional, Tuple
 import openai
 from openai import OpenAI
 
-from backend.schemas import ToolCallSummary
-from backend.tools import OPENAI_TOOLS, TOOL_DISPATCH
+try:
+    from backend.schemas import ToolCallSummary
+    from backend.tools import OPENAI_TOOLS, TOOL_DISPATCH
+except ImportError:
+    from schemas import ToolCallSummary
+    from tools import OPENAI_TOOLS, TOOL_DISPATCH
 
 logger = logging.getLogger("order_assistant.agent")
 

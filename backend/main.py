@@ -13,8 +13,14 @@ import asyncio
 import datetime
 import logging
 import os
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+# Ensure project root is in sys.path so "backend.*" imports work when root is backend/
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, status
@@ -22,23 +28,42 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.agent import AgentExecutionError, run_agent_turn
-from backend.data import (
-    DataLoadError,
-    get_orders_df,
-    import_csv_data,
-    reset_dataset_to_seed,
-    resolve_dataset_path,
-    validate_csv_data,
-)
-from backend.schemas import (
-    ChatMessageRequest,
-    ChatMessageResponse,
-    HealthResponse,
-    ImportCsvRequest,
-    StatsResponse,
-    ValidateCsvRequest,
-)
+try:
+    from backend.agent import AgentExecutionError, run_agent_turn
+    from backend.data import (
+        DataLoadError,
+        get_orders_df,
+        import_csv_data,
+        reset_dataset_to_seed,
+        resolve_dataset_path,
+        validate_csv_data,
+    )
+    from backend.schemas import (
+        ChatMessageRequest,
+        ChatMessageResponse,
+        HealthResponse,
+        ImportCsvRequest,
+        StatsResponse,
+        ValidateCsvRequest,
+    )
+except ImportError:
+    from agent import AgentExecutionError, run_agent_turn
+    from data import (
+        DataLoadError,
+        get_orders_df,
+        import_csv_data,
+        reset_dataset_to_seed,
+        resolve_dataset_path,
+        validate_csv_data,
+    )
+    from schemas import (
+        ChatMessageRequest,
+        ChatMessageResponse,
+        HealthResponse,
+        ImportCsvRequest,
+        StatsResponse,
+        ValidateCsvRequest,
+    )
 
 # Load environment variables from .env
 load_dotenv()
