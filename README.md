@@ -282,8 +282,9 @@ Because production CSV uploads, appending, and snapshot backups require persiste
 
 ---
 
-## 13. Live Application URL
+## 13. Live Application & Repository Links
 
+- **GitHub Repository**: [https://github.com/adithyansumesh/order-assistant](https://github.com/adithyansumesh/order-assistant)
 - **Production Live URL (Vercel Full-Stack)**: [https://order-assistant-weld.vercel.app](https://order-assistant-weld.vercel.app)
 - **Vercel Project Dashboard**: [https://vercel.com/adithyansreevinu-7233s-projects/order-assistant](https://vercel.com/adithyansreevinu-7233s-projects/order-assistant)
 - **Local Host**: [http://localhost:8000](http://localhost:8000)
